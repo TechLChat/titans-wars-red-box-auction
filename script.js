@@ -38,9 +38,12 @@ let spinning=false,pendingResult=null,rotationAngle=0;
  
 function normalizeState(v){
   v.players=v.players||[];
+  if(!Array.isArray(v.players))v.players=Object.values(v.players);
+  v.players.forEach(p=>{if(p.box===undefined)p.box=null});
   v.highStatus=v.highStatus||{};
   v.lowStatus=v.lowStatus||{};
   v.history=v.history||[];
+  if(!Array.isArray(v.history))v.history=Object.values(v.history);
   v.pendingDeclines=v.pendingDeclines||{};
   v.pendingDeclines.high=v.pendingDeclines.high||[];
   v.pendingDeclines.low=v.pendingDeclines.low||[];
@@ -71,11 +74,11 @@ function withPassword(fn){
   };
 }
  
-function availableBoxes(){const used=new Set(state.players.filter(p=>p.box!==null).map(p=>p.box));return Array.from({length:30},(_,i)=>i+1).filter(n=>!used.has(n))}
-function unassignedPlayers(){return state.players.filter(p=>p.box===null)}
+function availableBoxes(){const used=new Set(state.players.filter(p=>p.box!=null).map(p=>p.box));return Array.from({length:30},(_,i)=>i+1).filter(n=>!used.has(n))}
+function unassignedPlayers(){return state.players.filter(p=>p.box==null)}
 function nextPlayer(){
   const sel=document.getElementById("nextPlayerSelect");
-  if(sel&&sel.value){const p=state.players.find(x=>x.name===sel.value);if(p&&p.box===null)return p;}
+  if(sel&&sel.value){const p=state.players.find(x=>x.name===sel.value);if(p&&p.box==null)return p;}
   return unassignedPlayers()[0]||null;
 }
  
@@ -111,7 +114,7 @@ function renderAssignments(){
   state.players.slice().sort((a,c)=>(a.box??999)-(c.box??999)).forEach(p=>{
     const tr=document.createElement("tr");
     tr.innerHTML=`<td>${p.box??"—"}</td><td>${p.name}</td><td>${p.power}M</td><td class="small">${p.notes??""}</td>
-      <td>${p.box!==null?`<button class="danger" style="width:auto;padding:6px 10px" onclick="unassign('${p.name.replace(/'/g,"\\'")}')">Remove</button>`:""}</td>`;
+      <td>${p.box!=null?`<button class="danger" style="width:auto;padding:6px 10px" onclick="unassign('${p.name.replace(/'/g,"\\'")}')">Remove</button>`:""}</td>`;
     b.appendChild(tr);
   });
   const avail=availableBoxes().length;
