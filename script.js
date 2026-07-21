@@ -9,17 +9,21 @@ const firebaseConfig={
 };
 firebase.initializeApp(firebaseConfig);
 const stateRef=firebase.database().ref("state");
-
+ 
 const rosterData=[[1,"Ichi Sasaki",283,2,null,"High","Pending",null],[2,"Lulufanulu",230,7,null,"High","Pending",null],[3,"TheAngryBeaver",206,12,null,"High","Pending",null],[4,"Gentleman Jack",200,15,null,"High","Pending",null],[5,"W0lfyy",256,4,null,"High","Pending",null],[6,"YunusEmre66",241,5,null,"High","Pending",null],[7,"Calvin",168,null,5,"Low","Pending",null],[8,"En Sabah Nur",212,11,null,"High","Pending",null],[9,"Bigh",229,8,null,"High","Pending",null],[10,"Linincker",183,null,8,"Low","Pending",null],[11,"*Dark Baron*",185,null,10,"Low","Pending",null],[12,"Gran",229,9,null,"High","Pending",null],[13,"Dagmara",113,null,2,"Low","Pending",null],[14,"Ali Deniz",343,1,null,"High","Completed","Received rotating box 31 in the first auction."],[15,"Nativa",231,6,null,"High","Pending",null],[16,"Blah",133,null,1,"Low","Completed","Purchased rotating box 32 by mistake; counted as received."],[17,"Zaxos",177,null,7,"Low","Pending","Permanent box corrected from 31 to 17."],[18,"Canachris",184,null,9,"Low","Pending",null],[19,"A.C Millan",200,null,15,"Low","Pending",null],[20,"Cmdr Aus",195,null,14,"Low","Pending",null],[21,"Darkfire8000",189,null,13,"Low","Pending",null],[22,"Falcon3500",187,null,12,"Low","Pending",null],[23,"Hoyrat",161,null,3,"Low","Pending",null],[24,"~Man0l0@~",220,10,null,"High","Pending","Permanent box corrected from 32 to 24."],[25,"Bootie hunter",271,3,null,"High","Pending",null],[26,"X Force",168,null,6,"Low","Pending",null],[27,"Locuu",185,null,11,"Low","Pending",null],[28,"Broekhoest",161,null,4,"Low","Pending",null],[29,"Axe",202,13,null,"High","Pending",null],[30,"KillerKlown",201,14,null,"High","Pending",null]];
-
+ 
 const highQueue=[["Ali Deniz",343,"Completed"],["Ichi Sasaki",283,"Pending"],["Bootie hunter",271,"Pending"],["W0lfyy",256,"Pending"],["YunusEmre66",241,"Pending"],["Nativa",231,"Pending"],["Lulufanulu",230,"Pending"],["Bigh",229,"Pending"],["Gran",229,"Pending"],["~Man0l0@~",220,"Pending"],["En Sabah Nur",212,"Pending"],["TheAngryBeaver",206,"Pending"],["Axe",202,"Pending"],["KillerKlown",201,"Pending"],["Gentleman Jack",200,"Pending"]];
 const lowQueue=[["Blah",133,"Completed"],["Dagmara",113,"Pending"],["Hoyrat",161,"Pending"],["Broekhoest",161,"Pending"],["Calvin",168,"Pending"],["X Force",168,"Pending"],["Zaxos",177,"Pending"],["Linincker",183,"Pending"],["Canachris",184,"Pending"],["*Dark Baron*",185,"Pending"],["Locuu",185,"Pending"],["Falcon3500",187,"Pending"],["Darkfire8000",189,"Pending"],["Cmdr Aus",195,"Pending"],["A.C Millan",200,"Pending"]];
-
+ 
+// Firebase database keys can't contain . # $ / [ ] — player names can, so every place a
+// name is used as an object key (highStatus/lowStatus) runs through this first.
+function safeKey(name){return String(name).replace(/[.#$/\[\]]/g,"_")}
+ 
 function defaultState(){
   return {
     players:rosterData.map(([box,name,power,,,,,notes])=>({box,name,power,notes})),
-    highStatus:Object.fromEntries(highQueue.map(([n,,s])=>[n,s])),
-    lowStatus:Object.fromEntries(lowQueue.map(([n,,s])=>[n,s])),
+    highStatus:Object.fromEntries(highQueue.map(([n,,s])=>[safeKey(n),s])),
+    lowStatus:Object.fromEntries(lowQueue.map(([n,,s])=>[safeKey(n),s])),
     history:[{auction:1,date:"2026-07-20",highNom:"Ali Deniz",highOut:"Accepted",highRec:"Ali Deniz",lowNom:"Blah",lowOut:"Accepted",lowRec:"Blah",cycle:1,notes:"Blah purchased rotating box 32 by mistake."}],
     pendingDeclines:{high:[],low:[]},
     openRound:null,
@@ -31,7 +35,7 @@ function defaultState(){
 // (including your own) stays in sync with the same source of truth.
 let state=defaultState();
 let spinning=false,pendingResult=null,rotationAngle=0;
-
+ 
 function normalizeState(v){
   v.players=v.players||[];
   v.highStatus=v.highStatus||{};
@@ -56,7 +60,7 @@ stateRef.on("value",snap=>{
     pushState();
   }
 });
-
+ 
 const ADMIN_PASSWORD="1230";
 function withPassword(fn){
   return function(...args){
@@ -66,7 +70,7 @@ function withPassword(fn){
     fn(...args);
   };
 }
-
+ 
 function availableBoxes(){const used=new Set(state.players.filter(p=>p.box!==null).map(p=>p.box));return Array.from({length:30},(_,i)=>i+1).filter(n=>!used.has(n))}
 function unassignedPlayers(){return state.players.filter(p=>p.box===null)}
 function nextPlayer(){
@@ -74,9 +78,9 @@ function nextPlayer(){
   if(sel&&sel.value){const p=state.players.find(x=>x.name===sel.value);if(p&&p.box===null)return p;}
   return unassignedPlayers()[0]||null;
 }
-
+ 
 function colorFor(i){return "#b04f49"}
-
+ 
 function drawWheel(){
   const c=document.getElementById("wheel"),x=c.getContext("2d"),b=availableBoxes(),cx=320,cy=320,r=300;
   x.clearRect(0,0,640,640);
@@ -101,7 +105,7 @@ function drawWheel(){
   x.fillStyle="#e8b94f";x.font="700 19px Cinzel";x.textAlign="center";
   x.fillText("TITAN",cx,cy-4);x.fillText("WARS",cx,cy+20);
 }
-
+ 
 function renderAssignments(){
   const b=document.getElementById("assignmentBody");b.innerHTML="";
   state.players.slice().sort((a,c)=>(a.box??999)-(c.box??999)).forEach(p=>{
@@ -121,16 +125,16 @@ function renderAssignments(){
   const np=nextPlayer();
   document.getElementById("spinBtn").disabled=!avail||!np;
 }
-
+ 
 function statusBadge(s){return `<span class="badge ${s}">${s}</span>`}
-
+ 
 function renderQueues(){
   const h=document.getElementById("highBody"),l=document.getElementById("lowBody");
   h.innerHTML=l.innerHTML="";
   highQueue.forEach(([n,p],i)=>h.appendChild(queueRow(i,n,p,"high")));
   lowQueue.forEach(([n,p],i)=>l.appendChild(queueRow(i,n,p,"low")));
-  const nh=highQueue.find(([n])=>state.highStatus[n]==="Pending");
-  const nl=lowQueue.find(([n])=>state.lowStatus[n]==="Pending");
+  const nh=highQueue.find(([n])=>state.highStatus[safeKey(n)]==="Pending");
+  const nl=lowQueue.find(([n])=>state.lowStatus[safeKey(n)]==="Pending");
   document.getElementById("nextHigh").textContent=nh?nh[0]:"Cycle complete";
   document.getElementById("nextLow").textContent=nl?nl[0]:"Cycle complete";
   document.getElementById("dashHigh").textContent=nh?nh[0]:"—";
@@ -140,7 +144,7 @@ function renderQueues(){
 }
 function queueRow(i,n,p,side){
   const tr=document.createElement("tr");
-  const st=side==="high"?state.highStatus[n]:state.lowStatus[n];
+  const st=side==="high"?state.highStatus[safeKey(n)]:state.lowStatus[safeKey(n)];
   tr.innerHTML=`<td>${i+1}</td><td>${n}</td><td>${p}M</td><td>
     <select onchange="setQueueStatus('${side}','${n.replace(/'/g,"\\'")}',this.value)">
       ${["Pending","Completed","Declined"].map(o=>`<option ${st===o?"selected":""}>${o}</option>`).join("")}
@@ -148,7 +152,7 @@ function queueRow(i,n,p,side){
   return tr;
 }
 function setQueueStatus(side,name,value){
-  (side==="high"?state.highStatus:state.lowStatus)[name]=value;
+  (side==="high"?state.highStatus:state.lowStatus)[safeKey(name)]=value;
   if(value==="Declined"||value==="Completed"){
     let idx=state.openRound;
     if(idx===null||idx===undefined||!state.history[idx]){
@@ -182,7 +186,7 @@ function setQueueStatus(side,name,value){
   }
   pushState();
 }
-
+ 
 function renderHistory(){
   const b=document.getElementById("historyBody");b.innerHTML="";
   state.history.forEach((h,i)=>{
@@ -205,7 +209,7 @@ function editHistoryNotes(i){
 }
 function deleteHistoryActual(i){state.history.splice(i,1);pushState()}
 const deleteHistory=withPassword(deleteHistoryActual);
-
+ 
 function playerCycleLog(name,sideKey){
   const nomKey=sideKey+"Nom",outKey=sideKey+"Out",recKey=sideKey+"Rec";
   const rows=state.history.filter(h=>h[nomKey]===name).sort((a,c)=>a.cycle-c.cycle);
@@ -215,7 +219,7 @@ function playerCycleLog(name,sideKey){
   });
   const loggedCurrent=rows.some(h=>String(h.cycle)===String(state.currentCycle));
   if(!loggedCurrent){
-    const live=(sideKey==="high"?state.highStatus:state.lowStatus)[name]||"Pending";
+    const live=(sideKey==="high"?state.highStatus:state.lowStatus)[safeKey(name)]||"Pending";
     parts.push(`C${state.currentCycle}: ${live}`);
   }
   return parts;
@@ -237,7 +241,7 @@ function renderRoster(){
     b.appendChild(tr);
   });
 }
-
+ 
 function populateNotesSelect(){
   const sel=document.getElementById("notesPlayerSelect"),prevVal=sel.value;
   sel.innerHTML=state.players.slice().sort((a,c)=>a.name.localeCompare(c.name))
@@ -265,15 +269,15 @@ function saveNotesActual(){
 const saveNotes=saveNotesActual;
 document.getElementById("notesPlayerSelect").onchange=loadSelectedNotes;
 document.getElementById("saveNotesBtn").onclick=saveNotes;
-
+ 
 function renderAll(){
   const steps=[populateNotesSelect,drawWheel,renderAssignments,renderQueues,renderHistory,renderRoster];
   steps.forEach(fn=>{try{fn()}catch(e){console.error(fn.name,"failed:",e)}});
 }
-
+ 
 function unassignActual(name){const p=state.players.find(x=>x.name===name);if(p)p.box=null;pushState()}
 const unassign=withPassword(unassignActual);
-
+ 
 document.getElementById("spinBtn").onclick=()=>{
   if(spinning)return;
   const np=nextPlayer(),b=availableBoxes();
@@ -321,8 +325,8 @@ document.getElementById("cancelBtn").onclick=()=>{
 };
 document.getElementById("newCycleBtn").onclick=withPassword(()=>{
   if(confirm("Reset both rotating queues to Pending for a new cycle?")){
-    highQueue.forEach(([n])=>state.highStatus[n]="Pending");
-    lowQueue.forEach(([n])=>state.lowStatus[n]="Pending");
+    highQueue.forEach(([n])=>state.highStatus[safeKey(n)]="Pending");
+    lowQueue.forEach(([n])=>state.lowStatus[safeKey(n)]="Pending");
     state.pendingDeclines={high:[],low:[]};
     state.openRound=null;
     state.currentCycle+=1;
