@@ -10,10 +10,10 @@ const firebaseConfig={
 firebase.initializeApp(firebaseConfig);
 const stateRef=firebase.database().ref("state");
  
-const rosterData=[[1,"Ichi Sasaki",283,2,null,"High","Pending",null],[2,"Lulufanulu",230,7,null,"High","Pending",null],[3,"TheAngryBeaver",206,12,null,"High","Pending",null],[4,"Gentleman Jack",200,15,null,"High","Pending",null],[5,"W0lfyy",256,4,null,"High","Pending",null],[6,"YunusEmre66",241,5,null,"High","Pending",null],[7,"Calvin",168,null,5,"Low","Pending",null],[8,"En Sabah Nur",212,11,null,"High","Pending",null],[9,"Bigh",229,8,null,"High","Pending",null],[10,"Linincker",183,null,8,"Low","Pending",null],[11,"*Dark Baron*",185,null,10,"Low","Pending",null],[12,"Gran",229,9,null,"High","Pending",null],[13,"Rukia Kunchiki",210,null,2,"Low","Pending",null],[14,"Ali Deniz",343,1,null,"High","Completed","Received rotating box 31 in the first auction."],[15,"Nativa",231,6,null,"High","Pending",null],[16,"Blah",133,null,1,"Low","Completed","Purchased rotating box 32 by mistake; counted as received."],[17,"Zaxos",177,null,7,"Low","Pending","Permanent box corrected from 31 to 17."],[18,"Canachris",184,null,9,"Low","Pending",null],[19,"AC Milan",278,null,15,"Low","Pending",null],[20,"Cmdr Aus",195,null,14,"Low","Pending",null],[21,"Darkfire8000",189,null,13,"Low","Pending",null],[22,"Falcon3500",187,null,12,"Low","Pending",null],[23,"Hoyrat",161,null,3,"Low","Pending",null],[24,"~Man0l0@~",220,10,null,"High","Pending","Permanent box corrected from 32 to 24."],[25,"Bootie hunter",271,3,null,"High","Pending",null],[26,"X Force",168,null,6,"Low","Pending",null],[27,"Locuu",185,null,11,"Low","Pending",null],[28,"Broekhoest",161,null,4,"Low","Pending",null],[29,"Axe",202,13,null,"High","Pending",null],[30,"KillerKlown",201,14,null,"High","Pending",null]];
+const rosterData=[[1,"Ichi Sasaki",283,2,null,"High","Pending",null],[2,"Lulufanulu",230,7,null,"High","Pending",null],[3,"TheAngryBeaver",206,12,null,"High","Pending",null],[4,"Gentleman Jack",200,15,null,"High","Pending",null],[5,"W0lfyy",256,4,null,"High","Pending",null],[6,"YunusEmre66",241,5,null,"High","Pending",null],[7,"Calvin",168,null,5,"Low","Pending",null],[8,"En Sabah Nur",212,11,null,"High","Pending",null],[9,"Bigh",229,8,null,"High","Pending",null],[10,"Linincker",183,null,8,"Low","Pending",null],[11,"*Dark Baron*",185,null,10,"Low","Pending",null],[12,"Gran",229,9,null,"High","Pending",null],[13,"Rukia Kunchiki",113,null,2,"Low","Pending",null],[14,"Ali Deniz",343,1,null,"High","Completed","Received rotating box 31 in the first auction."],[15,"Nativa",231,6,null,"High","Pending",null],[16,"Blah",133,null,1,"Low","Completed","Purchased rotating box 32 by mistake; counted as received."],[17,"Zaxos",177,null,7,"Low","Pending","Permanent box corrected from 31 to 17."],[18,"Canachris",184,null,9,"Low","Pending",null],[19,"AC Milan",200,null,15,"Low","Pending",null],[20,"Cmdr Aus",195,null,14,"Low","Pending",null],[21,"Darkfire8000",189,null,13,"Low","Pending",null],[22,"Falcon3500",187,null,12,"Low","Pending",null],[23,"Hoyrat",161,null,3,"Low","Pending",null],[24,"~Man0l0@~",220,10,null,"High","Pending","Permanent box corrected from 32 to 24."],[25,"Bootie hunter",271,3,null,"High","Pending",null],[26,"X Force",168,null,6,"Low","Pending",null],[27,"Locuu",185,null,11,"Low","Pending",null],[28,"Broekhoest",161,null,4,"Low","Pending",null],[29,"Axe",202,13,null,"High","Pending",null],[30,"KillerKlown",201,14,null,"High","Pending",null]];
  
 const highQueue=[["Ali Deniz",343,"Completed"],["Ichi Sasaki",283,"Pending"],["Bootie hunter",271,"Pending"],["W0lfyy",256,"Pending"],["YunusEmre66",241,"Pending"],["Nativa",231,"Pending"],["Lulufanulu",230,"Pending"],["Bigh",229,"Pending"],["Gran",229,"Pending"],["~Man0l0@~",220,"Pending"],["En Sabah Nur",212,"Pending"],["TheAngryBeaver",206,"Pending"],["Axe",202,"Pending"],["KillerKlown",201,"Pending"],["Gentleman Jack",200,"Pending"]];
-const lowQueue=[["Blah",133,"Completed"],["Rukia Kunchiki",210,"Pending"],["Hoyrat",161,"Pending"],["Broekhoest",161,"Pending"],["Calvin",168,"Pending"],["X Force",168,"Pending"],["Zaxos",177,"Pending"],["Linincker",183,"Pending"],["Canachris",184,"Pending"],["*Dark Baron*",185,"Pending"],["Locuu",185,"Pending"],["Falcon3500",187,"Pending"],["Darkfire8000",189,"Pending"],["Cmdr Aus",195,"Pending"],["AC Milan",278,"Pending"]];
+const lowQueue=[["Blah",133,"Completed"],["Rukia Kunchiki",113,"Pending"],["Hoyrat",161,"Pending"],["Broekhoest",161,"Pending"],["Calvin",168,"Pending"],["X Force",168,"Pending"],["Zaxos",177,"Pending"],["Linincker",183,"Pending"],["Canachris",184,"Pending"],["*Dark Baron*",185,"Pending"],["Locuu",185,"Pending"],["Falcon3500",187,"Pending"],["Darkfire8000",189,"Pending"],["Cmdr Aus",195,"Pending"],["AC Milan",200,"Pending"]];
  
 // Firebase database keys can't contain . # $ / [ ] — player names can, so every place a
 // name is used as an object key (highStatus/lowStatus) runs through this first.
@@ -88,11 +88,21 @@ stateRef.on("value",snap=>{
 });
  
 const ADMIN_PASSWORD="1230";
+// Notes get unlocked once per tab so you're not retyping the password on every save.
+// Destructive actions (reset, new cycle, remove, delete) always prompt.
+let notesUnlocked=false;
+function askPassword(){
+  const pw=prompt("Enter admin password to continue:");
+  if(pw===null)return false;
+  if(pw!==ADMIN_PASSWORD){alert("Incorrect password.");return false;}
+  return true;
+}
 function withPassword(fn){
+  return function(...args){if(askPassword())fn(...args)};
+}
+function withNotesPassword(fn){
   return function(...args){
-    const pw=prompt("Enter admin password to continue:");
-    if(pw===null)return;
-    if(pw!==ADMIN_PASSWORD){alert("Incorrect password.");return;}
+    if(!notesUnlocked){if(!askPassword())return;notesUnlocked=true;}
     fn(...args);
   };
 }
@@ -226,15 +236,18 @@ function renderHistory(){
     b.appendChild(tr);
   });
 }
-function editHistoryNotes(i){
+function editHistoryNotesActual(i){
   const h=state.history[i];if(!h)return;
   const val=prompt("Notes for auction #"+h.auction+":",h.notes||"");
   if(val===null)return;
   h.notes=val.trim();
   pushState();
 }
+const editHistoryNotes=withNotesPassword(editHistoryNotesActual);
+window.editHistoryNotes=editHistoryNotes;
 function deleteHistoryActual(i){state.history.splice(i,1);pushState()}
 const deleteHistory=withPassword(deleteHistoryActual);
+window.deleteHistory=deleteHistory;
  
 function playerCycleLog(name,sideKey){
   const nomKey=sideKey+"Nom",outKey=sideKey+"Out",recKey=sideKey+"Rec";
@@ -302,7 +315,7 @@ function saveNotesActual(){
   const btn=document.getElementById("saveNotesBtn"),label=btn.textContent;
   btn.textContent="Saved \u2713";setTimeout(()=>{btn.textContent=label},1500);
 }
-const saveNotes=saveNotesActual;
+const saveNotes=withNotesPassword(saveNotesActual);
 document.getElementById("notesPlayerSelect").onchange=()=>{notesDirty=false;loadSelectedNotes(true)};
 document.getElementById("notesEditInput").oninput=()=>{notesDirty=true};
 document.getElementById("notesEditInput").onkeydown=e=>{if(e.key==="Enter")saveNotes()};
@@ -315,6 +328,7 @@ function renderAll(){
  
 function unassignActual(name){const p=state.players.find(x=>x.name===name);if(p)p.box=null;pushState()}
 const unassign=withPassword(unassignActual);
+window.unassign=unassign;
  
 document.getElementById("spinBtn").onclick=()=>{
   if(spinning)return;
