@@ -71,7 +71,7 @@
   </section>
 
   <section class="card" id="queue">
-    <div class="card-head"><div><h2>Rotation Queue</h2><div class="sub">Boxes 31 &amp; 32 — high &amp; low power queues</div></div></div>
+    <div class="card-head"><div><h2>Rotation Queue <span class="badge Pending" id="cycleBadge" style="font-size:12px;vertical-align:middle;margin-left:8px">Cycle —</span></h2><div class="sub">Boxes 31 &amp; 32 — high &amp; low power queues</div></div></div>
     <p class="notice" style="border-color:var(--gold-600);font-size:16px;line-height:1.9;margin-bottom:16px">
       <b>Box 31 and Box 32 are extra Red Boxes.</b><br>
       You do not keep them. They move to a new player each cycle.<br>
@@ -92,8 +92,24 @@
       <b>Hayır.</b> Durumunuzu <b>Declined</b> olarak değiştirin. Kutu sıradaki oyuncuya geçer.<br><br>
       Hayır demek sorun değil. Bir sonraki turda kutuyu alabilirsiniz.
     </p>
-    <div class="next-row"><span class="tag">Box 31 next</span><span class="who" id="nextHigh">—</span></div>
-    <div class="next-row"><span class="tag">Box 32 next</span><span class="who" id="nextLow">—</span></div>
+    <div style="background:#f4f8fd;border:2px solid var(--gold-500);border-radius:14px;padding:16px;margin-bottom:16px">
+      <div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);font-weight:600">Current auction — <span id="curCycle">—</span></div>
+      <div style="display:flex;flex-wrap:wrap;gap:14px;margin-top:14px">
+        <div style="flex:1 1 220px;background:var(--surface);border:1px solid var(--gold-200);border-radius:10px;padding:12px">
+          <div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);font-weight:600">Box 31</div>
+          <div id="curHigh" style="font-family:'Cinzel',serif;font-size:20px;font-weight:800;color:var(--navy-900);line-height:1.3;margin-top:4px">—</div>
+          <div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);font-weight:600;margin-top:10px">Next up</div>
+          <div id="upcomingHigh" style="color:var(--gold-700);font-weight:700;font-size:15px">—</div>
+        </div>
+        <div style="flex:1 1 220px;background:var(--surface);border:1px solid var(--gold-200);border-radius:10px;padding:12px">
+          <div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);font-weight:600">Box 32</div>
+          <div id="curLow" style="font-family:'Cinzel',serif;font-size:20px;font-weight:800;color:var(--navy-900);line-height:1.3;margin-top:4px">—</div>
+          <div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);font-weight:600;margin-top:10px">Next up</div>
+          <div id="upcomingLow" style="color:var(--gold-700);font-weight:700;font-size:15px">—</div>
+        </div>
+      </div>
+      <button class="secondary" id="copyAnnounceBtn" style="width:auto;margin-top:14px">Copy announcement</button>
+    </div>
     <div class="two">
       <div><h3>Box 31 — Top Down Queue</h3><div class="table-wrap"><table><thead><tr><th>#</th><th>Player</th><th>Power</th><th>Status</th></tr></thead><tbody id="highBody"></tbody></table></div></div>
       <div><h3>Box 32 — From the bottom up Queue</h3><div class="table-wrap"><table><thead><tr><th>#</th><th>Player</th><th>Power</th><th>Status</th></tr></thead><tbody id="lowBody"></tbody></table></div></div>
@@ -131,6 +147,11 @@
 
 </main>
 <input type="file" id="fileInput" accept=".json" hidden>
+<!-- Vestigial: the current auction panel replaced these, but the previously deployed
+     script.js still writes to them unguarded. Keeping them hidden means index.html can
+     be pasted before script.js without the Rotation Queue crashing mid-render.
+     Safe to delete once the matching script.js below is live. -->
+<span id="nextHigh" hidden></span><span id="nextLow" hidden></span>
 
 <script src="https://www.gstatic.com/firebasejs/12.11.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/12.11.0/firebase-database-compat.js"></script>
