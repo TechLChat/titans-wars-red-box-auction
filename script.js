@@ -202,18 +202,23 @@ function renderQueues(){
   if(vh)vh.textContent=nh||"Cycle complete";
   if(vl)vl.textContent=nl||"Cycle complete";
  
-  document.getElementById("dashHigh").textContent=nh||"—";
-  document.getElementById("dashLow").textContent=nl||"—";
+  // Dash cards and the panel now read from the SAME source. Previously the dash
+  // showed first-Pending while the panel showed the actual winner, so the top of
+  // the page contradicted the middle of it.
+  const r=currentRound();
+  const put=(id,txt)=>{const el=document.getElementById(id);if(el)el.textContent=txt};
+  put("dashHigh",r.high.name);
+  put("dashLow",r.low.name);
+  put("dashHighState",r.high.state);
+  put("dashLowState",r.low.state);
   const done=Object.values(state.highStatus).filter(v=>v==="Completed").length+Object.values(state.lowStatus).filter(v=>v==="Completed").length;
   document.getElementById("dashCycle").textContent=`Cycle ${state.currentCycle} — ${done} / 30`;
  
   // Current auction panel. Every lookup guarded so an older index.html
   // still renders the queue tables above.
-  const r=currentRound();
-  const put=(id,txt)=>{const el=document.getElementById(id);if(el)el.textContent=txt};
   put("curCycle",`Cycle ${state.currentCycle}`);
-  put("curHigh",r.high);
-  put("curLow",r.low);
+  put("curHigh",r.high.text);
+  put("curLow",r.low.text);
   put("upcomingHigh",r.upHigh);
   put("upcomingLow",r.upLow);
   put("cycleBadge",`Cycle ${state.currentCycle}`);
@@ -472,13 +477,14 @@ function currentRound(){
     if(String(state.history[i].cycle)===cyc){row=state.history[i];break}
   }
   function describe(side){
-    const up=firstPending(side)||"Cycle complete";
-    if(!row)return up;
+    const up=firstPending(side);
+    const idle=up?{name:up,state:"Next up",text:up}:{name:"Cycle complete",state:"",text:"Cycle complete"};
+    if(!row)return idle;
     const nom=row[side+"Nom"]||"",out=row[side+"Out"]||"",rec=row[side+"Rec"]||"";
-    if(rec)return `${rec} — accepted`;
-    if(out==="Declined"&&nom)return `${nom} declined → ${up} now next`;
-    if(nom)return nom;
-    return up;
+    if(rec)return {name:rec,state:"Accepted",text:`${rec} — accepted`};
+    if(out==="Declined"&&nom)return {name:nom,state:"Declined",text:`${nom} declined → ${up||"cycle complete"} now next`};
+    if(nom)return {name:nom,state:"Awaiting answer",text:nom};
+    return idle;
   }
   return {
     high:describe("high"),
@@ -497,8 +503,8 @@ function announcementText(){
   return [
     `RED BOX ROTATION — CYCLE ${state.currentCycle}`,
     ``,
-    `Box 31: ${r.high}`,
-    `Box 32: ${r.low}`,
+    `Box 31: ${r.high.text}`,
+    `Box 32: ${r.low.text}`,
     ``,
     `Next up`,
     `Box 31: ${r.upHigh}`,
