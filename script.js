@@ -223,21 +223,21 @@ function renderQueues(){
   put("upcomingLow",r.upLow);
   put("cycleBadge",`Cycle ${state.currentCycle}`);
 }
-// Spotlight rule: only this cycle's players and the next player up render at
-// full strength. Everyone else recedes. The status cell is deliberately left
-// at full opacity — members set their own status, and a faded dropdown reads
-// as disabled.
+// Spotlight rule: this cycle's players and the next player up get the gold row.
+// Everyone else recedes to 40%. The status cell stays at full opacity — members
+// set their own status, and a faded dropdown reads as disabled.
 function queueRow(i,n,p,side,isNext,inCycle){
   const tr=document.createElement("tr");
   const st=(side==="high"?state.highStatus:state.lowStatus)[safeKey(n)]||"Pending";
   const lit=isNext||inCycle;
-  if(isNext){
+  if(lit){
     tr.style.background="rgba(232,185,79,.22)";
     tr.style.fontWeight="700";
   }
+  if(inCycle)tr.style.borderLeft="4px solid var(--gold-600)";
   const fade=lit?"":' style="opacity:.4"';
   const tag=isNext?` <span class="badge Pending" style="margin-left:6px;font-size:10px">NEXT</span>`:"";
-  const mark=inCycle&&!isNext?` <span class="badge ${st==="Declined"?"Declined":"Completed"}" style="margin-left:6px;font-size:10px">CYCLE ${state.currentCycle}</span>`:"";
+  const mark=inCycle?` <span class="badge ${st==="Declined"?"Declined":"Completed"}" style="margin-left:6px;font-size:10px">CYCLE ${state.currentCycle}</span>`:"";
   tr.innerHTML=`<td${fade}>${i+1}</td><td${fade}>${n}${tag}${mark}</td><td${fade}>${p}M</td><td>
     <select onchange="setQueueStatus('${side}','${n.replace(/'/g,"\\'")}',this.value)">
       ${["Pending","Completed","Declined"].map(o=>`<option value="${o}" ${st===o?"selected":""}>${STATUS_LABELS[o]}</option>`).join("")}
