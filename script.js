@@ -46,6 +46,7 @@ function defaultState(){
     history:[{auction:1,date:"2026-07-20",highNom:"Ali Deniz",highOut:"Accepted",highRec:"Ali Deniz",lowNom:"Blah",lowOut:"Accepted",lowRec:"Blah",cycle:1,notes:"Blah purchased rotating box 32 by mistake."}],
     pendingDeclines:{high:[],low:[]},
     openRound:null,
+    holdUntil:{high:0,low:0},
     currentCycle:1
   };
 }
@@ -58,6 +59,18 @@ let spinning=false,pendingResult=null,rotationAngle=0;
 // Firebase update (yours or anyone else's) from wiping what you're typing.
 // Declared up here because the Firebase listener renders before the notes code runs.
 let notesDirty=false;
+// Turn lock: only the player whose turn it is can change their own status.
+// Flipping this on enables every row for corrections. Declared up here for the
+// same reason as notesDirty — the Firebase listener renders before the code
+// further down has run.
+let adminUnlocked=false;
+// Hold between auctions. When a player ACCEPTS, that box locks for this long so
+// the next player can't mark themselves Completed before the box is actually
+// offered in game. A DECLINE clears the hold immediately — nothing was won, so
+// the queue passes straight down.
+// Declared above stateRef.on because render functions read them.
+const HOLD_DAYS=7;
+const HOLD_MS=HOLD_DAYS*24*60*60*1000;
 // What each status shows in the dropdown. The stored value stays "Completed" /
 // "Declined" / "Pending" — only the visible label changes.
 const STATUS_LABELS={Pending:"Pending",Completed:"Completed / Accepted",Declined:"Declined"};
@@ -74,6 +87,10 @@ function normalizeState(v){
   v.pendingDeclines.high=v.pendingDeclines.high||[];
   v.pendingDeclines.low=v.pendingDeclines.low||[];
   v.openRound=(v.openRound===undefined)?null:v.openRound;
+  // 0 rather than null: Firebase deletes any field set to null.
+  v.holdUntil=v.holdUntil||{};
+  v.holdUntil.high=v.holdUntil.high||0;
+  v.holdUntil.low=v.holdUntil.low||0;
   v.currentCycle=v.currentCycle||1;
   return applyRenames(v);
 }
@@ -179,6 +196,19 @@ function cycleParticipants(side){
   return out;
 }
  
+// Milliseconds left on this box's hold, or 0 if it's open.
+function holdRemaining(side){
+  const until=(state.holdUntil&&state.holdUntil[side])||0;
+  return Math.max(0,until-Date.now());
+}
+function formatHold(ms){
+  if(ms<=0)return "";
+  const d=Math.floor(ms/86400000),h=Math.floor(ms%86400000/3600000),m=Math.floor(ms%3600000/60000);
+  if(d>0)return `${d}d ${h}h`;
+  if(h>0)return `${h}h ${m}m`;
+  return `${m}m`;
+}
+
 // First player still Pending on a side — this is the queue position, NOT
 // necessarily who the panel shows. See currentRound().
 function firstPending(side){
@@ -221,11 +251,19 @@ function renderQueues(){
   put("curLow",r.low.text);
   put("upcomingHigh",r.upHigh);
   put("upcomingLow",r.upLow);
+  const hh=holdRemaining("high"),hl=holdRemaining("low");
+  put("holdHigh",hh>0?`Opens in ${formatHold(hh)}`:"Open now");
+  put("holdLow",hl>0?`Opens in ${formatHold(hl)}`:"Open now");
   put("cycleBadge",`Cycle ${state.currentCycle}`);
 }
 // Spotlight rule: this cycle's players and the next player up get the gold row.
-// Everyone else recedes to 40%. The status cell stays at full opacity — members
-// set their own status, and a faded dropdown reads as disabled.
+// Everyone else recedes to 40%.
+//
+// Turn lock: the status dropdown is only enabled for the player whose turn it
+// actually is — the first Pending player on that side. Everyone else is
+// disabled so nobody can accept ahead of the queue. Admin unlock re-enables
+// every row. Client-side only: devtools defeats it. It prevents mistakes and
+// queue-jumping, not determined people.
 function queueRow(i,n,p,side,isNext,inCycle){
   const tr=document.createElement("tr");
   const st=(side==="high"?state.highStatus:state.lowStatus)[safeKey(n)]||"Pending";
@@ -237,17 +275,41 @@ function queueRow(i,n,p,side,isNext,inCycle){
   if(inCycle)tr.style.background="rgba(232,185,79,.45)";
   if(lit)tr.style.fontWeight="700";
   if(inCycle)tr.style.borderLeft="4px solid var(--gold-600)";
+  const held=holdRemaining(side);
+  const canEdit=adminUnlocked||(isNext&&held<=0);
+  const lockAttr=canEdit?"":` disabled title="${isNext&&held>0?`Box opens in ${formatHold(held)}`:"Not your turn yet — wait until your name is marked NEXT"}"`;
   const fade=lit?"":' style="opacity:.4"';
-  const tag=isNext?` <span class="badge Pending" style="margin-left:6px;font-size:10px">NEXT</span>`:"";
+  const tag=isNext?` <span class="badge Pending" style="margin-left:6px;font-size:10px">NEXT${held>0?` — ${formatHold(held)}`:""}</span>`:"";
   const mark=inCycle?` <span class="badge ${st==="Declined"?"Declined":"Completed"}" style="margin-left:6px;font-size:10px">CYCLE ${state.currentCycle}</span>`:"";
   tr.innerHTML=`<td${fade}>${i+1}</td><td${fade}>${n}${tag}${mark}</td><td${fade}>${p}M</td><td>
-    <select onchange="setQueueStatus('${side}','${n.replace(/'/g,"\\'")}',this.value)">
+    <select${lockAttr} onchange="setQueueStatus('${side}','${n.replace(/'/g,"\\'")}',this.value)">
       ${["Pending","Completed","Declined"].map(o=>`<option value="${o}" ${st===o?"selected":""}>${STATUS_LABELS[o]}</option>`).join("")}
     </select></td>`;
   return tr;
 }
 function setQueueStatus(side,name,value){
+  // Backstop for the turn lock. The disabled attribute stops the honest case;
+  // this stops a stale row firing after someone else moved the queue on.
+  // Still client-side — devtools defeats both.
+  if(!adminUnlocked){
+    const turn=firstPending(side);
+    if(turn&&turn!==name){
+      alert(`It is ${turn}'s turn on Box ${side==="high"?31:32}. Wait until your name is marked NEXT.`);
+      renderQueues();
+      return;
+    }
+    const held=holdRemaining(side);
+    if(held>0){
+      alert(`Box ${side==="high"?31:32} is on hold for another ${formatHold(held)}. Wait until the next auction opens.`);
+      renderQueues();
+      return;
+    }
+  }
   (side==="high"?state.highStatus:state.lowStatus)[safeKey(name)]=value;
+  // Accepting starts the hold; declining clears it so the queue moves straight on.
+  if(!state.holdUntil)state.holdUntil={high:0,low:0};
+  if(value==="Completed")state.holdUntil[side]=Date.now()+HOLD_MS;
+  if(value==="Declined")state.holdUntil[side]=0;
   if(value==="Declined"||value==="Completed"){
     let idx=state.openRound;
     if(idx===null||idx===undefined||!state.history[idx]){
@@ -441,6 +503,7 @@ document.getElementById("newCycleBtn").onclick=withPassword(()=>{
     lowQueue.forEach(([n])=>state.lowStatus[safeKey(n)]="Pending");
     state.pendingDeclines={high:[],low:[]};
     state.openRound=null;
+    state.holdUntil={high:0,low:0};
     state.currentCycle+=1;
     pushState();
   }
@@ -535,3 +598,38 @@ if(copyAnnounceBtn){
     }
   };
 }
+ 
+// ---------------------------------------------------------------------------
+// Admin unlock for the turn lock
+//
+// Toggles every status dropdown on so a mistake can be corrected, or so an
+// absent player's turn can be moved along. Prompts once per tab, same as notes.
+// Flips the disabled attribute in place rather than re-rendering, because
+// renderAll() is only ever called from the Firebase listener.
+// ---------------------------------------------------------------------------
+const unlockBtn=document.getElementById("unlockBtn");
+function refreshLocks(){
+  const btn=document.getElementById("unlockBtn");
+  if(btn)btn.textContent=adminUnlocked?"Turn lock OFF — click to re-lock":"Admin: unlock all rows";
+  // queueRow reads adminUnlocked, so redrawing the queues applies the change.
+  // renderQueues() only — never renderAll(), and never pushState(): this is a
+  // local view toggle, not shared state. Nobody else's browser should change.
+  try{renderQueues()}catch(e){console.error("refreshLocks failed:",e)}
+}
+if(unlockBtn){
+  unlockBtn.onclick=()=>{
+    if(adminUnlocked){adminUnlocked=false;refreshLocks();return}
+    if(!askPassword())return;
+    adminUnlocked=true;
+    refreshLocks();
+  };
+}
+
+ 
+// Ticks the countdown so a hold lifts itself without a page refresh. Redraws the
+// queues only — never renderAll(), never pushState(). Purely local: whether a
+// hold has expired is COMPUTED from the stored timestamp, so every browser
+// reaches the same answer and no two of them race to write anything.
+setInterval(()=>{
+  try{if(document.getElementById("highBody"))renderQueues()}catch(e){}
+},60000);
