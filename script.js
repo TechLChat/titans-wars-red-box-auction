@@ -230,10 +230,12 @@ function queueRow(i,n,p,side,isNext,inCycle){
   const tr=document.createElement("tr");
   const st=(side==="high"?state.highStatus:state.lowStatus)[safeKey(n)]||"Pending";
   const lit=isNext||inCycle;
-  if(lit){
-    tr.style.background="rgba(232,185,79,.22)";
-    tr.style.fontWeight="700";
-  }
+  // Two strengths of gold: this cycle's players are the headline, so they get
+  // the stronger fill. The next player sits a shade back. inCycle wins if
+  // someone is both — they're still the current story.
+  if(isNext)tr.style.background="rgba(232,185,79,.15)";
+  if(inCycle)tr.style.background="rgba(232,185,79,.45)";
+  if(lit)tr.style.fontWeight="700";
   if(inCycle)tr.style.borderLeft="4px solid var(--gold-600)";
   const fade=lit?"":' style="opacity:.4"';
   const tag=isNext?` <span class="badge Pending" style="margin-left:6px;font-size:10px">NEXT</span>`:"";
