@@ -58,6 +58,9 @@ let spinning=false,pendingResult=null,rotationAngle=0;
 // Firebase update (yours or anyone else's) from wiping what you're typing.
 // Declared up here because the Firebase listener renders before the notes code runs.
 let notesDirty=false;
+// What each status shows in the dropdown. The stored value stays "Completed" /
+// "Declined" / "Pending" — only the visible label changes.
+const STATUS_LABELS={Pending:"Pending",Completed:"Completed / Accepted",Declined:"Declined"};
  
 function normalizeState(v){
   v.players=v.players||[];
@@ -183,7 +186,7 @@ function queueRow(i,n,p,side){
   const st=side==="high"?state.highStatus[safeKey(n)]:state.lowStatus[safeKey(n)];
   tr.innerHTML=`<td>${i+1}</td><td>${n}</td><td>${p}M</td><td>
     <select onchange="setQueueStatus('${side}','${n.replace(/'/g,"\\'")}',this.value)">
-      ${["Pending","Completed","Declined"].map(o=>`<option ${st===o?"selected":""}>${o}</option>`).join("")}
+      ${["Pending","Completed","Declined"].map(o=>`<option value="${o}" ${st===o?"selected":""}>${STATUS_LABELS[o]}</option>`).join("")}
     </select></td>`;
   return tr;
 }
@@ -222,6 +225,7 @@ function setQueueStatus(side,name,value){
   }
   pushState();
 }
+window.setQueueStatus=setQueueStatus;
  
 function renderHistory(){
   const b=document.getElementById("historyBody");b.innerHTML="";
