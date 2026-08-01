@@ -10,14 +10,33 @@ const firebaseConfig={
 firebase.initializeApp(firebaseConfig);
 const stateRef=firebase.database().ref("state");
  
-const rosterData=[[1,"Ichi Sasaki",283,2,null,"High","Pending",null],[2,"Lulufanulu",230,7,null,"High","Pending",null],[3,"TheAngryBeaver",206,12,null,"High","Pending",null],[4,"Gentleman Jack",200,15,null,"High","Pending",null],[5,"W0lfyy",256,4,null,"High","Pending",null],[6,"YunusEmre66",241,5,null,"High","Pending",null],[7,"Calvin",168,null,5,"Low","Pending",null],[8,"En Sabah Nur",212,11,null,"High","Pending",null],[9,"Bigh",229,8,null,"High","Pending",null],[10,"Linincker",183,null,8,"Low","Pending",null],[11,"*Dark Baron*",185,null,10,"Low","Pending",null],[12,"Gran",229,9,null,"High","Pending",null],[13,"Dagmara",113,null,2,"Low","Pending",null],[14,"Ali Deniz",343,1,null,"High","Completed","Received rotating box 31 in the first auction."],[15,"Nativa",231,6,null,"High","Pending",null],[16,"Blah",133,null,1,"Low","Completed","Purchased rotating box 32 by mistake; counted as received."],[17,"Zaxos",177,null,7,"Low","Pending","Permanent box corrected from 31 to 17."],[18,"Canachris",184,null,9,"Low","Pending",null],[19,"A.C Millan",200,null,15,"Low","Pending",null],[20,"Cmdr Aus",195,null,14,"Low","Pending",null],[21,"Darkfire8000",189,null,13,"Low","Pending",null],[22,"Falcon3500",187,null,12,"Low","Pending",null],[23,"Hoyrat",161,null,3,"Low","Pending",null],[24,"~Man0l0@~",220,10,null,"High","Pending","Permanent box corrected from 32 to 24."],[25,"Bootie hunter",271,3,null,"High","Pending",null],[26,"X Force",168,null,6,"Low","Pending",null],[27,"Locuu",185,null,11,"Low","Pending",null],[28,"Broekhoest",161,null,4,"Low","Pending",null],[29,"Axe",202,13,null,"High","Pending",null],[30,"KillerKlown",201,14,null,"High","Pending",null]];
+const rosterData=[[1,"Ichi Sasaki",283,2,null,"High","Pending",null],[2,"Lulufanulu",230,7,null,"High","Pending",null],[3,"TheAngryBeaver",206,12,null,"High","Pending",null],[4,"Gentleman Jack",200,15,null,"High","Pending",null],[5,"W0lfyy",256,4,null,"High","Pending",null],[6,"YunusEmre66",241,5,null,"High","Pending",null],[7,"Calvin",168,null,5,"Low","Pending",null],[8,"En Sabah Nur",212,11,null,"High","Pending",null],[9,"Bigh",229,8,null,"High","Pending",null],[10,"Linincker",183,null,8,"Low","Pending",null],[11,"*Dark Baron*",185,null,10,"Low","Pending",null],[12,"Gran",229,9,null,"High","Pending",null],[13,"Rukia Kunchiki",113,null,2,"Low","Pending",null],[14,"Ali Deniz",343,1,null,"High","Completed","Received rotating box 31 in the first auction."],[15,"Nativa",231,6,null,"High","Pending",null],[16,"Blah",133,null,1,"Low","Completed","Purchased rotating box 32 by mistake; counted as received."],[17,"Zaxos",177,null,7,"Low","Pending","Permanent box corrected from 31 to 17."],[18,"Canachris",184,null,9,"Low","Pending",null],[19,"AC Milan",200,null,15,"Low","Pending",null],[20,"Cmdr Aus",195,null,14,"Low","Pending",null],[21,"Darkfire8000",189,null,13,"Low","Pending",null],[22,"Falcon3500",187,null,12,"Low","Pending",null],[23,"Hoyrat",161,null,3,"Low","Pending",null],[24,"~Man0l0@~",220,10,null,"High","Pending","Permanent box corrected from 32 to 24."],[25,"Bootie hunter",271,3,null,"High","Pending",null],[26,"X Force",168,null,6,"Low","Pending",null],[27,"Locuu",185,null,11,"Low","Pending",null],[28,"Broekhoest",161,null,4,"Low","Pending",null],[29,"Axe",202,13,null,"High","Pending",null],[30,"KillerKlown",201,14,null,"High","Pending",null]];
  
 const highQueue=[["Ali Deniz",343,"Completed"],["Ichi Sasaki",283,"Pending"],["Bootie hunter",271,"Pending"],["W0lfyy",256,"Pending"],["YunusEmre66",241,"Pending"],["Nativa",231,"Pending"],["Lulufanulu",230,"Pending"],["Bigh",229,"Pending"],["Gran",229,"Pending"],["~Man0l0@~",220,"Pending"],["En Sabah Nur",212,"Pending"],["TheAngryBeaver",206,"Pending"],["Axe",202,"Pending"],["KillerKlown",201,"Pending"],["Gentleman Jack",200,"Pending"]];
-const lowQueue=[["Blah",133,"Completed"],["Dagmara",113,"Pending"],["Hoyrat",161,"Pending"],["Broekhoest",161,"Pending"],["Calvin",168,"Pending"],["X Force",168,"Pending"],["Zaxos",177,"Pending"],["Linincker",183,"Pending"],["Canachris",184,"Pending"],["*Dark Baron*",185,"Pending"],["Locuu",185,"Pending"],["Falcon3500",187,"Pending"],["Darkfire8000",189,"Pending"],["Cmdr Aus",195,"Pending"],["A.C Millan",200,"Pending"]];
+const lowQueue=[["Blah",133,"Completed"],["Rukia Kunchiki",113,"Pending"],["Hoyrat",161,"Pending"],["Broekhoest",161,"Pending"],["Calvin",168,"Pending"],["X Force",168,"Pending"],["Zaxos",177,"Pending"],["Linincker",183,"Pending"],["Canachris",184,"Pending"],["*Dark Baron*",185,"Pending"],["Locuu",185,"Pending"],["Falcon3500",187,"Pending"],["Darkfire8000",189,"Pending"],["Cmdr Aus",195,"Pending"],["AC Milan",200,"Pending"]];
  
 // Firebase database keys can't contain . # $ / [ ] — player names can, so every place a
 // name is used as an object key (highStatus/lowStatus) runs through this first.
 function safeKey(name){return String(name).replace(/[.#$/\[\]]/g,"_")}
+ 
+// One-off player renames. Old names are still sitting in the live Firebase data,
+// so remap them every time state loads until the next save writes the new names.
+const RENAMES={"Dagmara":"Rukia Kunchiki","A.C Millan":"AC Milan"};
+function applyRenames(v){
+  v.players.forEach(p=>{if(RENAMES[p.name])p.name=RENAMES[p.name]});
+  ["highStatus","lowStatus"].forEach(k=>{
+    Object.keys(RENAMES).forEach(oldName=>{
+      const ok=safeKey(oldName),nk=safeKey(RENAMES[oldName]);
+      if(ok!==nk&&v[k][ok]!==undefined){if(v[k][nk]===undefined)v[k][nk]=v[k][ok];delete v[k][ok]}
+    });
+  });
+  v.history.forEach(h=>["highNom","highRec","lowNom","lowRec"].forEach(f=>{if(RENAMES[h[f]])h[f]=RENAMES[h[f]]}));
+  ["high","low"].forEach(side=>{
+    v.pendingDeclines[side]=v.pendingDeclines[side].map(n=>RENAMES[n]||n);
+  });
+  if(v.openRound){["highNom","lowNom"].forEach(f=>{if(RENAMES[v.openRound[f]])v.openRound[f]=RENAMES[v.openRound[f]]})}
+  return v;
+}
  
 function defaultState(){
   return {
@@ -35,6 +54,10 @@ function defaultState(){
 // (including your own) stays in sync with the same source of truth.
 let state=defaultState();
 let spinning=false,pendingResult=null,rotationAngle=0;
+// true while you have unsaved text in the notes box — stops an incoming
+// Firebase update (yours or anyone else's) from wiping what you're typing.
+// Declared up here because the Firebase listener renders before the notes code runs.
+let notesDirty=false;
  
 function normalizeState(v){
   v.players=v.players||[];
@@ -49,7 +72,7 @@ function normalizeState(v){
   v.pendingDeclines.low=v.pendingDeclines.low||[];
   v.openRound=(v.openRound===undefined)?null:v.openRound;
   v.currentCycle=v.currentCycle||1;
-  return v;
+  return applyRenames(v);
 }
 function pushState(){
   stateRef.set(state).catch(err=>{console.error("Failed to sync:",err);alert("Couldn't save — check your internet connection and try again.")});
@@ -229,8 +252,8 @@ function playerCycleLog(name,sideKey){
 }
 function renderRoster(){
   const b=document.getElementById("rosterBody");b.innerHTML="";
-  state.players.slice().sort((a,c)=>a.box-c.box).forEach(p=>{
-    const src=rosterData.find(r=>r[1]===p.name);
+  state.players.slice().sort((a,c)=>(a.box??999)-(c.box??999)).forEach(p=>{
+    const src=rosterData.find(r=>r[1]===p.name)||[];
     const [,,,hrank,lrank,side]=src;
     const sideKey=side==="High"?"high":"low";
     const log=playerCycleLog(p.name,sideKey);
@@ -240,22 +263,29 @@ function renderRoster(){
     }).join("");
     const tr=document.createElement("tr");
     tr.innerHTML=`<td>${p.box??"—"}</td><td>${p.name}</td><td>${p.power}M</td><td>${hrank??"—"}</td><td>${lrank??"—"}</td>
-      <td>${side}</td><td>${cycleCell}</td><td class="small">${p.notes??""}</td>`;
+      <td>${side||"—"}</td><td>${cycleCell}</td><td class="small">${p.notes??""}</td>`;
     b.appendChild(tr);
   });
 }
  
 function populateNotesSelect(){
   const sel=document.getElementById("notesPlayerSelect"),prevVal=sel.value;
-  sel.innerHTML=state.players.slice().sort((a,c)=>a.name.localeCompare(c.name))
-    .map(p=>`<option value="${p.name.replace(/"/g,"&quot;")}">${p.name}</option>`).join("");
-  if(state.players.some(p=>p.name===prevVal))sel.value=prevVal;
+  const names=state.players.map(p=>p.name).slice().sort((a,c)=>a.localeCompare(c));
+  const current=Array.from(sel.options).map(o=>o.value);
+  if(names.join("\u0001")!==current.join("\u0001")){
+    sel.innerHTML=names.map(n=>`<option value="${n.replace(/"/g,"&quot;")}">${n}</option>`).join("");
+    if(names.includes(prevVal))sel.value=prevVal;
+  }
   loadSelectedNotes();
 }
-function loadSelectedNotes(){
+function loadSelectedNotes(force){
+  const inp=document.getElementById("notesEditInput");
+  // don't clobber an edit in progress
+  if(!force&&(notesDirty||document.activeElement===inp))return;
   const sel=document.getElementById("notesPlayerSelect"),p=state.players.find(x=>x.name===sel.value);
   const raw=p?(p.notes||""):"";
-  document.getElementById("notesEditInput").value=raw.replace(/^\[[^\]]*\]\s*/,"");
+  inp.value=raw.replace(/^\[[^\]]*\]\s*/,"");
+  notesDirty=false;
 }
 function gmtTimestamp(){
   const d=new Date();
@@ -264,13 +294,18 @@ function gmtTimestamp(){
 }
 function saveNotesActual(){
   const sel=document.getElementById("notesPlayerSelect"),p=state.players.find(x=>x.name===sel.value);
-  if(!p)return;
+  if(!p){alert("Pick a player first.");return;}
   const text=document.getElementById("notesEditInput").value.trim();
   p.notes=text?`[${gmtTimestamp()}] ${text}`:"";
+  notesDirty=false;
   pushState();
+  const btn=document.getElementById("saveNotesBtn"),label=btn.textContent;
+  btn.textContent="Saved \u2713";setTimeout(()=>{btn.textContent=label},1500);
 }
 const saveNotes=saveNotesActual;
-document.getElementById("notesPlayerSelect").onchange=loadSelectedNotes;
+document.getElementById("notesPlayerSelect").onchange=()=>{notesDirty=false;loadSelectedNotes(true)};
+document.getElementById("notesEditInput").oninput=()=>{notesDirty=true};
+document.getElementById("notesEditInput").onkeydown=e=>{if(e.key==="Enter")saveNotes()};
 document.getElementById("saveNotesBtn").onclick=saveNotes;
  
 function renderAll(){
