@@ -167,24 +167,73 @@ function renderAssignments(){
  
 function statusBadge(s){return `<span class="badge ${s}">${s}</span>`}
  
+// Names involved in THIS cycle on a given side — nominee or recipient, from
+// history. Status alone can't tell you this: highStatus just says "Completed",
+// with no record of which cycle that came from.
+function cycleParticipants(side){
+  const cyc=String(state.currentCycle),out=new Set();
+  state.history.forEach(h=>{
+    if(String(h.cycle)!==cyc)return;
+    [h[side+"Nom"],h[side+"Rec"]].forEach(n=>{if(n)out.add(n)});
+  });
+  return out;
+}
+ 
+// First player still Pending on a side — this is the queue position, NOT
+// necessarily who the panel shows. See currentRound().
+function firstPending(side){
+  const q=side==="high"?highQueue:lowQueue;
+  const st=side==="high"?state.highStatus:state.lowStatus;
+  const f=q.find(([n])=>(st[safeKey(n)]||"Pending")==="Pending");
+  return f?f[0]:null;
+}
+ 
 function renderQueues(){
   const h=document.getElementById("highBody"),l=document.getElementById("lowBody");
+  const nh=firstPending("high"),nl=firstPending("low");
+  const ph=cycleParticipants("high"),pl=cycleParticipants("low");
   h.innerHTML=l.innerHTML="";
-  highQueue.forEach(([n,p],i)=>h.appendChild(queueRow(i,n,p,"high")));
-  lowQueue.forEach(([n,p],i)=>l.appendChild(queueRow(i,n,p,"low")));
-  const nh=highQueue.find(([n])=>state.highStatus[safeKey(n)]==="Pending");
-  const nl=lowQueue.find(([n])=>state.lowStatus[safeKey(n)]==="Pending");
-  document.getElementById("nextHigh").textContent=nh?nh[0]:"Cycle complete";
-  document.getElementById("nextLow").textContent=nl?nl[0]:"Cycle complete";
-  document.getElementById("dashHigh").textContent=nh?nh[0]:"—";
-  document.getElementById("dashLow").textContent=nl?nl[0]:"—";
+  highQueue.forEach(([n,p],i)=>h.appendChild(queueRow(i,n,p,"high",n===nh,ph.has(n))));
+  lowQueue.forEach(([n,p],i)=>l.appendChild(queueRow(i,n,p,"low",n===nl,pl.has(n))));
+ 
+  // Vestigial spans — hidden in the current index.html, kept so a mismatched
+  // deploy can't throw. Guarded, so they can be deleted from the HTML freely.
+  const vh=document.getElementById("nextHigh"),vl=document.getElementById("nextLow");
+  if(vh)vh.textContent=nh||"Cycle complete";
+  if(vl)vl.textContent=nl||"Cycle complete";
+ 
+  document.getElementById("dashHigh").textContent=nh||"—";
+  document.getElementById("dashLow").textContent=nl||"—";
   const done=Object.values(state.highStatus).filter(v=>v==="Completed").length+Object.values(state.lowStatus).filter(v=>v==="Completed").length;
   document.getElementById("dashCycle").textContent=`Cycle ${state.currentCycle} — ${done} / 30`;
+ 
+  // Current auction panel. Every lookup guarded so an older index.html
+  // still renders the queue tables above.
+  const r=currentRound();
+  const put=(id,txt)=>{const el=document.getElementById(id);if(el)el.textContent=txt};
+  put("curCycle",`Cycle ${state.currentCycle}`);
+  put("curHigh",r.high);
+  put("curLow",r.low);
+  put("upcomingHigh",r.upHigh);
+  put("upcomingLow",r.upLow);
+  put("cycleBadge",`Cycle ${state.currentCycle}`);
 }
-function queueRow(i,n,p,side){
+// Spotlight rule: only this cycle's players and the next player up render at
+// full strength. Everyone else recedes. The status cell is deliberately left
+// at full opacity — members set their own status, and a faded dropdown reads
+// as disabled.
+function queueRow(i,n,p,side,isNext,inCycle){
   const tr=document.createElement("tr");
-  const st=side==="high"?state.highStatus[safeKey(n)]:state.lowStatus[safeKey(n)];
-  tr.innerHTML=`<td>${i+1}</td><td>${n}</td><td>${p}M</td><td>
+  const st=(side==="high"?state.highStatus:state.lowStatus)[safeKey(n)]||"Pending";
+  const lit=isNext||inCycle;
+  if(isNext){
+    tr.style.background="rgba(232,185,79,.22)";
+    tr.style.fontWeight="700";
+  }
+  const fade=lit?"":' style="opacity:.4"';
+  const tag=isNext?` <span class="badge Pending" style="margin-left:6px;font-size:10px">NEXT</span>`:"";
+  const mark=inCycle&&!isNext?` <span class="badge ${st==="Declined"?"Declined":"Completed"}" style="margin-left:6px;font-size:10px">CYCLE ${state.currentCycle}</span>`:"";
+  tr.innerHTML=`<td${fade}>${i+1}</td><td${fade}>${n}${tag}${mark}</td><td${fade}>${p}M</td><td>
     <select onchange="setQueueStatus('${side}','${n.replace(/'/g,"\\'")}',this.value)">
       ${["Pending","Completed","Declined"].map(o=>`<option value="${o}" ${st===o?"selected":""}>${STATUS_LABELS[o]}</option>`).join("")}
     </select></td>`;
@@ -404,3 +453,77 @@ fileInput.onchange=e=>{
   r.onload=()=>{try{state=normalizeState(JSON.parse(r.result));pushState()}catch(err){alert("Invalid file")}};
   r.readAsText(e.target.files[0]);
 };
+ 
+// ---------------------------------------------------------------------------
+// Current auction panel
+//
+// The queue tables show POSITION (who is next in line). This shows OUTCOME
+// (who actually won this cycle), and keeps showing it until the cycle moves on.
+//
+// Reads the NEWEST history row whose cycle matches state.currentCycle.
+// A history row carrying the wrong cycle makes this silently fall back to
+// "first Pending" and look wrong — check the Cycle column in Auction History
+// before assuming the panel is broken.
+// ---------------------------------------------------------------------------
+function currentRound(){
+  const cyc=String(state.currentCycle);
+  let row=null;
+  for(let i=state.history.length-1;i>=0;i--){
+    if(String(state.history[i].cycle)===cyc){row=state.history[i];break}
+  }
+  function describe(side){
+    const up=firstPending(side)||"Cycle complete";
+    if(!row)return up;
+    const nom=row[side+"Nom"]||"",out=row[side+"Out"]||"",rec=row[side+"Rec"]||"";
+    if(rec)return `${rec} — accepted`;
+    if(out==="Declined"&&nom)return `${nom} declined → ${up} now next`;
+    if(nom)return nom;
+    return up;
+  }
+  return {
+    high:describe("high"),
+    low:describe("low"),
+    upHigh:firstPending("high")||"Cycle complete",
+    upLow:firstPending("low")||"Cycle complete",
+    row:row
+  };
+}
+ 
+// Built from the same source as the panel, so the page and the chat message
+// can never disagree. Short, plain sentences — most members read this through
+// a translator. "Completed" and "Declined" stay in English to match the dropdown.
+function announcementText(){
+  const r=currentRound();
+  return [
+    `RED BOX ROTATION — CYCLE ${state.currentCycle}`,
+    ``,
+    `Box 31: ${r.high}`,
+    `Box 32: ${r.low}`,
+    ``,
+    `Next up`,
+    `Box 31: ${r.upHigh}`,
+    `Box 32: ${r.upLow}`,
+    ``,
+    `Buy the box, then set your status to Completed.`,
+    `Do not want it? Set your status to Declined.`,
+    ``,
+    `https://techlchat.github.io/titans-wars-red-box-auction/`
+  ].join("\n");
+}
+ 
+const copyAnnounceBtn=document.getElementById("copyAnnounceBtn");
+if(copyAnnounceBtn){
+  copyAnnounceBtn.onclick=()=>{
+    const text=announcementText();
+    const flash=()=>{
+      const label=copyAnnounceBtn.textContent;
+      copyAnnounceBtn.textContent="Copied \u2713";
+      setTimeout(()=>{copyAnnounceBtn.textContent=label},1500);
+    };
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(flash).catch(()=>prompt("Copy the message below:",text));
+    } else {
+      prompt("Copy the message below:",text);
+    }
+  };
+}
