@@ -252,8 +252,8 @@ function renderQueues(){
   put("upcomingHigh",r.upHigh);
   put("upcomingLow",r.upLow);
   const hh=holdRemaining("high"),hl=holdRemaining("low");
-  put("holdHigh",hh>0?`Opens in ${formatHold(hh)}`:"Open now");
-  put("holdLow",hl>0?`Opens in ${formatHold(hl)}`:"Open now");
+  put("holdHigh",hh>0?`Their turn opens in ${formatHold(hh)}`:"Their turn is open");
+  put("holdLow",hl>0?`Their turn opens in ${formatHold(hl)}`:"Their turn is open");
   put("cycleBadge",`Cycle ${state.currentCycle}`);
 }
 // Spotlight rule: this cycle's players and the next player up get the gold row.
@@ -498,7 +498,17 @@ document.getElementById("cancelBtn").onclick=()=>{
   document.getElementById("confirmBtn").disabled=true;document.getElementById("cancelBtn").disabled=true;
 };
 document.getElementById("newCycleBtn").onclick=withPassword(()=>{
-  if(confirm("Reset both rotating queues to Pending for a new cycle?")){
+  const nh=highQueue[0][0],nl=lowQueue[0][0];
+  if(confirm(
+    `RESET ALL 30 PLAYERS TO PENDING?\n\n`+
+    `This sends both queues back to position 1:\n`+
+    `  Box 31 would go to ${nh}\n`+
+    `  Box 32 would go to ${nl}\n\n`+
+    `Anyone who has already had a box goes back in line ahead of players who `+
+    `have never had one.\n\n`+
+    `Only do this once all 15 on each side have had a turn.\n\n`+
+    `To simply run the next auction, cancel and use "Start Next Auction" instead.`
+  )){
     highQueue.forEach(([n])=>state.highStatus[safeKey(n)]="Pending");
     lowQueue.forEach(([n])=>state.lowStatus[safeKey(n)]="Pending");
     state.pendingDeclines={high:[],low:[]};
@@ -633,3 +643,47 @@ if(unlockBtn){
 setInterval(()=>{
   try{if(document.getElementById("highBody"))renderQueues()}catch(e){}
 },60000);
+ 
+// ---------------------------------------------------------------------------
+// Start Next Auction
+//
+// This is the normal between-auctions action, and it is NOT the same as Start
+// New Rotation Cycle.
+//
+//   Start Next Auction    bumps the cycle, locks both boxes for the hold
+//                         period, and LEAVES EVERY STATUS ALONE. The queue
+//                         carries on down the list — which is how this
+//                         rotation actually works.
+//
+//   Start New Rotation Cycle  resets all 30 players to Pending, sending the
+//                         list back to position 1. Only correct once everyone
+//                         has genuinely had a turn.
+//
+// Reaching for the wrong one puts the players at the top of each queue back in
+// line for another box ahead of people who have never had one.
+// ---------------------------------------------------------------------------
+const nextAuctionBtn=document.getElementById("nextAuctionBtn");
+if(nextAuctionBtn){
+  nextAuctionBtn.onclick=withPassword(()=>{
+    const raw=prompt(`How many days until the next auction opens?\n\nBoth boxes stay locked for this long. Nobody can set Completed or Declined until it expires.`,String(HOLD_DAYS));
+    if(raw===null)return;
+    const days=Number(raw);
+    if(!isFinite(days)||days<0){alert("Enter a number of days, for example 7.");return}
+    const until=Date.now()+days*24*60*60*1000;
+    const opens=new Date(until).toLocaleString();
+    const nh=firstPending("high")||"nobody left",nl=firstPending("low")||"nobody left";
+    if(!confirm(
+      `Start auction for cycle ${state.currentCycle+1}?\n\n`+
+      `Box 31 goes to: ${nh}\n`+
+      `Box 32 goes to: ${nl}\n\n`+
+      `Both boxes locked until ${opens}.\n\n`+
+      `Everyone keeps their current status — the queue carries on down the list. `+
+      `Nobody is reset to Pending.`
+    ))return;
+    state.currentCycle+=1;
+    state.holdUntil={high:until,low:until};
+    state.openRound=null;
+    state.pendingDeclines={high:[],low:[]};
+    pushState();
+  });
+}
