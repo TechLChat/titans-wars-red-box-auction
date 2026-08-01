@@ -72,6 +72,16 @@
 
   <section class="card" id="queue">
     <div class="card-head"><div><h2>Rotation Queue</h2><div class="sub">Boxes 31 &amp; 32 — high &amp; low power queues</div></div></div>
+    <p class="notice" style="border-color:var(--gold-600);font-size:16px;line-height:1.9;margin-bottom:16px">
+      <b>Box 31 and Box 32 are extra Red Boxes.</b><br>
+      You do not keep them. They move to a new player each cycle.<br>
+      You must pay diamonds to get the extra box.<br><br>
+      Find your name in the list below.<br>
+      Do you have enough diamonds? Do you want the extra box?<br>
+      <b>Yes.</b> Buy the box. Then change your status to <b>Completed</b>.<br>
+      <b>No.</b> Change your status to <b>Declined</b>. The box goes to the next player.<br><br>
+      It is okay to say no. You can get the box in the next cycle.
+    </p>
     <div class="next-row"><span class="tag">Box 31 next</span><span class="who" id="nextHigh">—</span></div>
     <div class="next-row"><span class="tag">Box 32 next</span><span class="who" id="nextLow">—</span></div>
     <div class="two">
@@ -79,7 +89,6 @@
       <div><h3>Box 32 — From the bottom up Queue</h3><div class="table-wrap"><table><thead><tr><th>#</th><th>Player</th><th>Power</th><th>Status</th></tr></thead><tbody id="lowBody"></tbody></table></div></div>
     </div>
     <div class="actions" style="margin-top:16px"><button class="secondary" id="newCycleBtn" style="width:auto">Start New Rotation Cycle</button></div>
-    <p class="notice">Mark a player <b>Completed</b> only when they actually receive the box. Mark <b>Declined</b> if they turn it down when offered — they'll be skipped until reset to Pending. Leave everyone else <b>Pending</b> until their turn comes up.</p>
   </section>
 
   <section class="card" id="history">
